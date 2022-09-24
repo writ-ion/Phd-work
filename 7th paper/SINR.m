@@ -1,0 +1,90 @@
+%% SINR calculation for monostatic backscatter
+% The transmit power is dependent of the system (LTE/5G) and and the noise
+% power is calculated based on the thermal noise power. The interference
+% power is calculated using the interference power for the co-channel based
+% on the distance (d2) in the simulations representing the distance from
+% the TX2 to the BD. The input parameter is d2, and the output values are
+% the SNR,SIR & SINR calculated due to the FSPL.
+
+% clc
+% clear all
+% close all
+
+function [SINR_s1,SNR_s1,SIR_s1] = SINR(frequency,distance1,distance2,X,Y)
+%% Transmit power (Pt)
+
+Pt = 46;                                            %dBm
+Pt_lin = (1/1000)*10^(Pt/10);                       % transmit power in linear scale
+
+%% Noise power (Pn) calculation
+
+k = 1.38*10^-23;
+T = 290;
+B = 12*15; % 12RB*15khz (LTE)
+B = B*10^3;
+
+noise = 10*log10(k*T*B/0.001);                         %thermal noise power in dB
+Pn = (10^((noise-30)/10));
+
+%% Received power (Pr) calculation
+
+d1 = distance1;                                      % distance (TX1-BD) in kilometers
+d2 = distance2;                                      % distance (TX2-BD) in kilometers
+f = frequency;                                            % frequency in MHz
+lambda = (3*10^8)/(f*10^6);                         % wavelength
+Gt = 1;                                             % gain of Tx antenna in linear scale (for radar)
+Gr = 1;                                             % gain of BD in linear scale (for radar)
+G = 0;                                              % Gain of Tx antenna for FSPL (in dBi)
+eta = 0.88*lambda^2;                                % radar cross-section (in square meters)
+
+L = 10;                                             % additional loss in dB
+L_lin = 10^(L/10);                                  % additional loss in linear scale
+
+FSPL_own = 32.45 + 20*log10(d1) + 20*log10 (f);     % FSPL of RX signal 
+FSPL_other = 32.45 + 20*log10(d2) + 20*log10 (f);   % FSPL of interference signal
+
+% for i=1:length(d1)
+%     Pr_radar_own_lin(i) = (Pt_lin*Gt*Gr*lambda^2*eta)/((4*pi)^3*(d1(i)^2)*L_lin); % Rx power at the TX antenna (monostatic),
+%                                                                     ...distance^4 needs to be modified to d^2 to have the received power at the BD
+%     Pr_radar_other_lin(i) = (Pt_lin*Gt*Gr*lambda^2*eta)/((4*pi)^3*(d2(i)^2)*L_lin);
+% end
+% 
+% Pr_radar_own = 10*log10(Pr_radar_own_lin/0.001);            % dB
+% Pr_radar_other = 10*log10(Pr_radar_other_lin/0.001);        % dB
+
+L_total_own = L + FSPL_own;                                 % additional loss is added here
+L_total_other = L + FSPL_other;
+
+Pr_FSPL_own = Pt + G - L_total_own;                         % Received signal strength at the BD (in dBm)
+P_rx = 10.^((Pr_FSPL_own-30)/10);                            % signal power in linear scale
+
+Pr_FSPL_other = Pt + G - L_total_other;                     % Received interference strength at the BD (in dBm)
+P_rx_i = 10.^((Pr_FSPL_other-30)/10);                        % interference power in linear scale
+
+%% SINR 
+for i=1:length(d1)
+    SINR_total_FSPL(i) = P_rx(i)/(Pn + P_rx_i(i));           % utilising FSPL
+    SNR_FSPL(i) = P_rx(i)/Pn;                                          % the SNR of the system using received power (wrt FSPL) and thrmal noise Pn
+    SIR_FSPl(i) = P_rx(i)/P_rx_i(i);
+%     SINR_total_radar(i) = Pr_radar_own(i)/(Pn + Pr_radar_other(i));        % utilising radar eq
+%     SNR_radar(i) = Pr_radar_own(i)/Pn;                                        % the SNR of the system using received power (wrt radar eq) and thrmal noise Pn
+end
+SINR_db = 10*log10(SINR_total_FSPL);
+SNR_db = 10*log10(SNR_FSPL);
+SIR_db = 10*log10(SIR_FSPl);
+
+SINR_s1 = reshape(SINR_db(1,:),length(X),length(Y));                % SINR for scenario 1
+SNR_s1 = reshape(SNR_db(1,:),length(X),length(Y));                  % SNR for scenario 1 (with FSPL) to illustrate
+SIR_s1 = reshape(SIR_db(1,:),length(X),length(Y)); 
+% SINR_s2 = reshape(SINR_total_radar(1,:),length(X),length(Y));               %SINR for scenario 2
+% SNR_s2 = reshape(SNR_radar(1,:),length(X),length(Y));                       % SNR for scenario 2 (with radar eq) to illustrate
+
+% figure
+% mesh(XX,YY,SINR_s2)
+% title('SINR due to radar equation')
+% figure
+% mesh(XX,YY,SNR_s2)
+% title('SNR due to radar equation')
+% b=colorbar;
+% ylabel(b,'SINR (dB)','FontSize',16,'Rotation',270);
+end

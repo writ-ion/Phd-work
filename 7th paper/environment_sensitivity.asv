@@ -1,0 +1,67 @@
+clc
+clear all
+close all
+
+%% Description of the environment with the location of TX1, TX2 and BD
+
+tx1 = [0 0];    %location of TX1 in cell 1
+tx2 = [150 0];  %based on the specific site distance of the co-channel TX (cell 2)
+
+X = -180:0.1:180;
+Y = -50:0.1:50;
+[XX,YY] = ndgrid(X,Y);
+Z = [XX(:),YY(:)];
+
+%% Distance between TX1 and BD
+
+d1 = ones(1,length(Z));
+for i = 1:length(Z)
+    d1(i) = distance(tx1(1),Z(i,1),tx1(2),Z(i,2));
+end
+
+%% Distance between BD and TX2
+
+d2 = ones(1,length(Z));
+for i = 1:length(Z)
+    d2(i) = distance(tx2(1),Z(i,1),tx2(2),Z(i,2));
+end
+
+%% Calling the SINR funtion with inputs of distance1 (TX1-BD), distancce2 (BD-TX2) and frequency
+...and environment mapping parameters X and Y (to determine the grid in the final graphs
+...and outputs of the SINR, SNR and SIR, in that order
+f = 700;                                    %frequency
+
+[SINR,SNR,SIR] = SINR(f,d1,d2,X,Y);
+
+
+%% Illustration of the environment
+
+figure
+mesh(XX,YY,SINR)
+title('SINR due to FSPL')
+xlabel('Distance [m]')
+a=colorbar;
+ylabel(a,'SINR (dB)','FontSize',16,'Rotation',270);
+ylabel('Distance [m]')
+
+figure
+mesh(XX,YY,SNR)
+title('SNR due to FSPL')
+b=colorbar;
+ylabel(b,'SNR (dB)','FontSize',16,'Rotation',270);
+xlabel('Distance [m]')
+ylabel('Distance [m]')
+
+figure
+mesh(XX,YY,SIR)
+title('SIR due to FSPL')
+c=colorbar;
+ylabel(c,'SIR (dB)','FontSize',16,'Rotation',270);
+xlabel('Distance [m]')
+ylabel('Distance [m]')
+
+%% function for calculating the distance between any two points
+
+function [d] = distance(x1,x2,y1,y2)
+    d = sqrt((x2-x1)^2 + (y2-y1)^2);
+end
